@@ -1397,8 +1397,6 @@ LIBRESOBJS =
 SRC00 = \
 	$(TOP)\src\sqlcipher.c \
 	$(TOP)\src\crypto_cc.c \
-	$(TOP)\src\crypto_libtomcrypt.c \
-	$(TOP)\src\crypto_nss.c \
 	$(TOP)\src\crypto_openssl.c \
 	$(TOP)\src\sqlcipher.h \
   $(TOP)\src\alter.c \

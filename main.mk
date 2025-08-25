@@ -533,15 +533,11 @@ clean: clean-sanity-check
 SQLCIPHER_OBJ = \
   sqlcipher.o \
   crypto_openssl.o \
-  crypto_libtomcrypt.o \
-  crypto_nss.o \
   crypto_cc.o
 
 SQLCIPHER_SRC = \
   $(TOP)/src/sqlcipher.h \
   $(TOP)/src/sqlcipher.c \
-  $(TOP)/src/crypto_libtomcrypt.c \
-  $(TOP)/src/crypto_nss.c \
   $(TOP)/src/crypto_openssl.c \
   $(TOP)/src/crypto_cc.c
 
@@ -549,10 +545,6 @@ sqlcipher.o: $(TOP)/src/sqlcipher.c $(DEPS_OBJ_COMMON)
 	$(T.cc.sqlite) $(CFLAGS.libsqlite3) -c $(TOP)/src/sqlcipher.c
 crypto_openssl.o:  $(TOP)/src/crypto_openssl.c $(DEPS_OBJ_COMMON)
 	$(T.cc.sqlite) $(CFLAGS.libsqlite3) -c $(TOP)/src/crypto_openssl.c
-crypto_nss.o:  $(TOP)/src/crypto_nss.c $(DEPS_OBJ_COMMON)
-	$(T.cc.sqlite) $(CFLAGS.libsqlite3) -c $(TOP)/src/crypto_nss.c
-crypto_libtomcrypt.o:  $(TOP)/src/crypto_libtomcrypt.c $(DEPS_OBJ_COMMON)
-	$(T.cc.sqlite) $(CFLAGS.libsqlite3) -c $(TOP)/src/crypto_libtomcrypt.c
 crypto_cc.o: $(TOP)/src/crypto_cc.c $(DEPS_OBJ_COMMON)
 	$(T.cc.sqlite) $(CFLAGS.libsqlite3) -c $(TOP)/src/crypto_cc.c
 
