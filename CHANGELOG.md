@@ -1,6 +1,8 @@
 # SQLCipher Change Log
 Notable changes to this project are documented in this file.
 
+## [4.12.0] - (? 2025 - [4.12.0 changes])
+
 ## [4.11.0] - (October 2025 - [4.11.0 changes])
 - Converts log output to UTF-16 when writing to stdout or stderr on Windows
 - Fixes scope issues to allow --disable-amalgamation to work properly
@@ -306,6 +308,8 @@ __BREAKING CHANGE__: `SELECT` statements (now also including schema independent 
 ### Security
 - Change KDF iteration length from 4,000 to 64,000
 
+[4.12.0]: https://github.com/sqlcipher/sqlcipher/tree/v4.12.0
+[4.12.0 changes]: https://github.com/sqlcipher/sqlcipher/compare/v4.11.0...v4.12.0
 [4.11.0]: https://github.com/sqlcipher/sqlcipher/tree/v4.11.0
 [4.11.0 changes]: https://github.com/sqlcipher/sqlcipher/compare/v4.10.0...v4.11.0
 [4.10.0]: https://github.com/sqlcipher/sqlcipher/tree/v4.10.0
