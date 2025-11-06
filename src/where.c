@@ -426,11 +426,11 @@ static WhereTerm *whereScanNext(WhereScan *pScan){
             pScan->pWC = pWC;
             pScan->k = k+1;
 #ifdef WHERETRACE_ENABLED
-            if( sqlite3WhereTrace & 0x20000 ){
+            if( (sqlite3WhereTrace & 0x20000)!=0 && pScan->nEquiv>1 ){
               int ii;
-              sqlite3DebugPrintf("SCAN-TERM %p: nEquiv=%d",
-                 pTerm, pScan->nEquiv);
-              for(ii=0; ii<pScan->nEquiv; ii++){
+              sqlite3DebugPrintf("EQUIVALENT TO {%d:%d} (due to TERM-%d):",
+                 pScan->aiCur[0], pScan->aiColumn[0], pTerm->iTerm);
+              for(ii=1; ii<pScan->nEquiv; ii++){
                 sqlite3DebugPrintf(" {%d:%d}",
                    pScan->aiCur[ii], pScan->aiColumn[ii]);
               }
@@ -1201,7 +1201,9 @@ static SQLITE_NOINLINE void constructAutomaticIndex(
     VdbeCoverage(v);
     VdbeComment((v, "next row of %s", pSrc->pSTab->zName));
   }else{
-    addrTop = sqlite3VdbeAddOp1(v, OP_Rewind, pLevel->iTabCur); VdbeCoverage(v);
+    assert( pLevel->addrHalt );
+    addrTop = sqlite3VdbeAddOp2(v, OP_Rewind,pLevel->iTabCur,pLevel->addrHalt);
+    VdbeCoverage(v);
   }
   if( pPartial ){
     iContinue = sqlite3VdbeMakeLabel(pParse);
@@ -1229,11 +1231,14 @@ static SQLITE_NOINLINE void constructAutomaticIndex(
                           pSrc->u4.pSubq->regResult, pLevel->iIdxCur);
     sqlite3VdbeGoto(v, addrTop);
     pSrc->fg.viaCoroutine = 0;
+    sqlite3VdbeJumpHere(v, addrTop);
   }else{
     sqlite3VdbeAddOp2(v, OP_Next, pLevel->iTabCur, addrTop+1); VdbeCoverage(v);
     sqlite3VdbeChangeP5(v, SQLITE_STMTSTATUS_AUTOINDEX);
+    if( (pSrc->fg.jointype & JT_LEFT)!=0 ){
+      sqlite3VdbeJumpHere(v, addrTop);
+    }
   }
-  sqlite3VdbeJumpHere(v, addrTop);
   sqlite3ReleaseTempReg(pParse, regRecord);
  
   /* Jump here when skipping the initialization */
@@ -2385,6 +2390,7 @@ void sqlite3WhereTermPrint(WhereTerm *pTerm, int iTerm){
     }else{
       sqlite3_snprintf(sizeof(zLeft),zLeft,"left=%d", pTerm->leftCursor);
     }
+    iTerm = pTerm->iTerm = MAX(iTerm,pTerm->iTerm);
     sqlite3DebugPrintf(
        "TERM-%-3d %p %s %-12s op=%03x wtFlags=%04x",
        iTerm, pTerm, zType, zLeft, pTerm->eOperator, pTerm->wtFlags);
@@ -3526,6 +3532,7 @@ static int whereLoopAddBtreeIndex(
    && pProbe->hasStat1!=0
    && OptimizationEnabled(db, SQLITE_SkipScan)
    && pProbe->aiRowLogEst[saved_nEq+1]>=42  /* TUNING: Minimum for skip-scan */
+   && pSrc->fg.fromExists==0
    && (rc = whereLoopResize(db, pNew, pNew->nLTerm+1))==SQLITE_OK
   ){
     LogEst nIter;
@@ -5097,6 +5104,10 @@ static i8 wherePathSatisfiesOrderBy(
        && ((wctrlFlags&(WHERE_DISTINCTBY|WHERE_SORTBYGROUP))!=WHERE_DISTINCTBY)
       ){
         obSat = obDone;
+      }else{
+        /* No further ORDER BY terms may be matched. So this call should
+        ** return >=0, not -1. Clear isOrderDistinct to ensure it does so. */
+        isOrderDistinct = 0;
       }
       break;
     }
@@ -5842,8 +5853,15 @@ static int wherePathSolver(WhereInfo *pWInfo, LogEst nRowEst){
         ** mxChoice best-so-far paths.
         **
         ** First look for an existing path among best-so-far paths
-        ** that covers the same set of loops and has the same isOrdered
-        ** setting as the current path candidate.
+        ** that:
+        **     (1) covers the same set of loops, and
+        **     (2) has a compatible isOrdered value.
+        **
+        ** "Compatible isOrdered value" means either
+        **     (A) both have isOrdered==-1, or
+        **     (B) both have isOrder>=0, or
+        **     (C) ordering does not matter because this is the last round
+        **         of the solver.
         **
         ** The term "((pTo->isOrdered^isOrdered)&0x80)==0" is equivalent
         ** to (pTo->isOrdered==(-1))==(isOrdered==(-1))" for the range
@@ -5852,7 +5870,7 @@ static int wherePathSolver(WhereInfo *pWInfo, LogEst nRowEst){
         testcase( nTo==0 );
         for(jj=0, pTo=aTo; jj<nTo; jj++, pTo++){
           if( pTo->maskLoop==maskNew
-           && ((pTo->isOrdered^isOrdered)&0x80)==0
+           && ( ((pTo->isOrdered^isOrdered)&0x80)==0 || iLoop==nLoop-1 )
           ){
             testcase( jj==nTo-1 );
             break;
@@ -6007,11 +6025,10 @@ static int wherePathSolver(WhereInfo *pWInfo, LogEst nRowEst){
     return SQLITE_ERROR;
   }
  
-  /* Find the lowest cost path.  pFrom will be left pointing to that path */
+  /* Only one path is available, which is the best path */
+  assert( nFrom==1 );
   pFrom = aFrom;
-  for(ii=1; ii<nFrom; ii++){
-    if( pFrom->rCost>aFrom[ii].rCost ) pFrom = &aFrom[ii];
-  }
+
   assert( pWInfo->nLevel==nLoop );
   /* Load the lowest cost path into pWInfo */
   for(iLoop=0; iLoop<nLoop; iLoop++){
@@ -6144,7 +6161,10 @@ static SQLITE_NOINLINE void whereInterstageHeuristic(WhereInfo *pWInfo){
   for(i=0; i<pWInfo->nLevel; i++){
     WhereLoop *p = pWInfo->a[i].pWLoop;
     if( p==0 ) break;
-    if( (p->wsFlags & WHERE_VIRTUALTABLE)!=0 ) continue;
+    if( (p->wsFlags & WHERE_VIRTUALTABLE)!=0 ){
+      /* Treat a vtab scan as similar to a full-table scan */
+      break;
+    }
     if( (p->wsFlags & (WHERE_COLUMN_EQ|WHERE_COLUMN_NULL|WHERE_COLUMN_IN))!=0 ){
       u8 iTab = p->iTab;
       WhereLoop *pLoop;
@@ -7082,6 +7102,14 @@ WhereInfo *sqlite3WhereBegin(
     pTab = pTabItem->pSTab;
     iDb = sqlite3SchemaToIndex(db, pTab->pSchema);
     pLoop = pLevel->pWLoop;
+    pLevel->addrBrk = sqlite3VdbeMakeLabel(pParse);
+    if( ii==0 || (pTabItem[0].fg.jointype & JT_LEFT)!=0 ){
+      pLevel->addrHalt = pLevel->addrBrk;
+    }else if( pWInfo->a[ii-1].pRJ ){
+      pLevel->addrHalt = pWInfo->a[ii-1].addrBrk;
+    }else{
+      pLevel->addrHalt = pWInfo->a[ii-1].addrHalt;
+    }
     if( (pTab->tabFlags & TF_Ephemeral)!=0 || IsView(pTab) ){
       /* Do nothing */
     }else
@@ -7133,6 +7161,13 @@ WhereInfo *sqlite3WhereBegin(
       sqlite3VdbeAddOp4Dup8(v, OP_ColumnsUsed, pTabItem->iCursor, 0, 0,
                             (const u8*)&pTabItem->colUsed, P4_INT64);
 #endif
+      if( ii>=2
+       && (pTabItem[0].fg.jointype & (JT_LTORJ|JT_LEFT))==0 
+       && pLevel->addrHalt==pWInfo->a[0].addrHalt
+      ){
+        sqlite3VdbeAddOp2(v, OP_IfEmpty, pTabItem->iCursor, pWInfo->iBreak);
+        VdbeCoverage(v);
+      }
     }else{
       sqlite3TableLock(pParse, iDb, pTab->tnum, 0, pTab->zName);
     }
@@ -7389,6 +7424,9 @@ void sqlite3WhereEnd(WhereInfo *pWInfo){
         sqlite3VdbeAddOp2(v, OP_Goto, 1, pLevel->p2);
       }
 #endif /* SQLITE_DISABLE_SKIPAHEAD_DISTINCT */
+      if( pTabList->a[pLevel->iFrom].fg.fromExists ){
+        sqlite3VdbeAddOp2(v, OP_Goto, 0, sqlite3VdbeCurrentAddr(v)+2);
+      }
       /* The common case: Advance to the next row */
       if( pLevel->addrCont ) sqlite3VdbeResolveLabel(v, pLevel->addrCont);
       sqlite3VdbeAddOp3(v, pLevel->op, pLevel->p1, pLevel->p2, pLevel->p3);
