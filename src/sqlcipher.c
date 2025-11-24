@@ -3383,8 +3383,8 @@ int sqlcipherCodecAttach(sqlite3* db, int nDb, const void *zKey, int nKey) {
     return SQLITE_MISUSE;
   }
 
-  if(!(db && (pDb = &db->aDb[nDb]))) {
-    sqlcipher_log(SQLCIPHER_LOG_ERROR, SQLCIPHER_LOG_CORE, "%s: invalid database", __func__);
+  if(!(db && nDb >= 0 && nDb < db->nDb && (pDb = &db->aDb[nDb]))) {
+    sqlcipher_log(SQLCIPHER_LOG_ERROR, SQLCIPHER_LOG_CORE, "%s: invalid database %p %d", __func__, db, nDb);
     return SQLITE_MISUSE;
   }
 
@@ -3485,18 +3485,24 @@ cleanup:
   return rc;
 }
 
+/* search for the index of the named database by comparing db names. main is
+ * always 0, temp 1, and other attached databses follow. If the name is
+ * NULL or empty the main database will be used consistent with sqlite defaults. If
+ * sqlite3 handle is NULL or the database can't be found by name, return -1 indicating
+ * an invalid database */
 int sqlcipher_find_db_index(sqlite3 *db, const char *zDb) {
   int db_index;
-  if(zDb == NULL){
-    return 0;
-  }
+
+  if(!db) return -1;
+  if(!zDb || sqlite3_stricmp(zDb,"")==0) return 0;
+
   for(db_index = 0; db_index < db->nDb; db_index++) {
     struct Db *pDb = &db->aDb[db_index];
-    if(strcmp(pDb->zDbSName, zDb) == 0) {
+    if(sqlite3_stricmp(pDb->zDbSName, zDb) == 0) {
       return db_index;
     }
   }
-  return 0;
+  return -1;
 }
 
 void sqlite3_activate_see(const char* in) {
@@ -3539,8 +3545,16 @@ int sqlite3_rekey_v2(sqlite3 *db, const char *zDb, const void *pKey, int nKey) {
 
   if(db && pKey && nKey) {
     int db_index = sqlcipher_find_db_index(db, zDb);
-    struct Db *pDb = &db->aDb[db_index];
+    struct Db *pDb = NULL;
+
+    if(!(db_index >= 0 && db_index < db->nDb)) {
+      sqlcipher_log(SQLCIPHER_LOG_ERROR, SQLCIPHER_LOG_CORE, "%s: invalid database zDb=%p", __func__, zDb);
+      return SQLITE_MISUSE;
+    }
+
+    pDb = &db->aDb[db_index];
     sqlcipher_log(SQLCIPHER_LOG_DEBUG, SQLCIPHER_LOG_CORE, "sqlite3_rekey_v2: database zDb=%p db_index:%d", zDb, db_index);
+
     if(pDb->pBt) {
       codec_ctx *ctx;
       int rc, page_count;
@@ -3603,7 +3617,7 @@ int sqlite3_rekey_v2(sqlite3 *db, const char *zDb, const void *pKey, int nKey) {
     return SQLITE_OK;
   }
   sqlcipher_log(SQLCIPHER_LOG_ERROR, SQLCIPHER_LOG_CORE, "sqlite3_rekey_v2: no key provided for db %s: rekey can't be used to decrypt an encrypted database", zDb);
-  return SQLITE_ERROR;
+  return SQLITE_MISUSE;
 }
 
 /*
@@ -3616,8 +3630,17 @@ int sqlite3_rekey_v2(sqlite3 *db, const char *zDb, const void *pKey, int nKey) {
  * be passed back directly. Otherwise, a "keyspec" consisting of the raw key and salt
  * will be used instead. */
 void sqlcipherCodecGetKey(sqlite3* db, int nDb, void **zKey, int *nKey) {
-  struct Db *pDb = &db->aDb[nDb];
+  struct Db *pDb = NULL;
+
   sqlcipher_log(SQLCIPHER_LOG_DEBUG, SQLCIPHER_LOG_CORE, "sqlcipherCodecGetKey:db=%p, nDb=%d", db, nDb);
+
+  *zKey = NULL;
+  *nKey = 0;
+
+  if(!(db && nDb >= 0 && nDb < db->nDb)) return; /* invalid database */
+
+  pDb = &db->aDb[nDb];
+
   if( pDb->pBt ) {
     codec_ctx *ctx = (codec_ctx*) sqlcipherPagerGetCodec(sqlite3BtreePager(pDb->pBt));
     
@@ -3631,9 +3654,6 @@ void sqlcipherCodecGetKey(sqlite3* db, int nDb, void **zKey, int *nKey) {
       } else {
         sqlcipher_cipher_ctx_get_keyspec(ctx, ctx->read_ctx, (char**) zKey, nKey);
       }
-    } else {
-      *zKey = NULL;
-      *nKey = 0;
     }
   }
 }
@@ -3754,10 +3774,9 @@ static void sqlcipher_exportFunc(sqlite3_context *context, int argc, sqlite3_val
   }
 
 
-  /* if the name of the target is not main, but the index returned is zero 
-     there is a mismatch and we should not proceed */
+  /* if the target database is not valid, do not proceed. */
   targetDb_idx =  sqlcipher_find_db_index(db, targetDb);
-  if(targetDb_idx == 0 && targetDb != NULL && sqlite3_stricmp("main", targetDb) != 0) {
+  if(targetDb_idx < 0) {
     rc = SQLITE_ERROR;
     pzErrMsg = sqlite3_mprintf("unknown database %s", targetDb);
     goto end_of_export;

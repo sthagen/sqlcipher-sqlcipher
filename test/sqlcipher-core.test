@@ -74,6 +74,20 @@ do_test will-open-with-correct-derived-key {
 db close
 file delete -force test.db
 
+# run test with sqlite3_key function directly
+setup test.db "'testkey'"
+do_test will-open-with-sqlite3key {
+
+  sqlite_orig db test.db
+  sqlite3_key db "testkey"
+  execsql {
+    SELECT name FROM sqlite_schema WHERE type='table';
+    SELECT * from t1;
+  }
+} {t1 test1 test2}
+db close
+file delete -force test.db
+
 # set an encryption key (non-hex) and create
 # temp tables, verify you can read from
 # sqlite_temp_master
