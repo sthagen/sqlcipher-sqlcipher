@@ -1,6 +1,8 @@
 # SQLCipher Change Log
 Notable changes to this project are documented in this file.
 
+## [4.13.0] - (? - [4.13.0 changes])
+
 ## [4.12.0] - (December 2025 - [4.12.0 changes])
 - Updates baseline to SQLite 3.51.1
 - Adds `PRAGMA cipher_status` so applications can verify a database handle is using encryption
@@ -318,6 +320,8 @@ Notable changes to this project are documented in this file.
 ### Security
 - Change KDF iteration length from 4,000 to 64,000
 
+[4.13.0]: https://github.com/sqlcipher/sqlcipher/tree/v4.13.0
+[4.13.0 changes]: https://github.com/sqlcipher/sqlcipher/compare/v4.12.0...v4.13.0
 [4.12.0]: https://github.com/sqlcipher/sqlcipher/tree/v4.12.0
 [4.12.0 changes]: https://github.com/sqlcipher/sqlcipher/compare/v4.11.0...v4.12.0
 [4.11.0]: https://github.com/sqlcipher/sqlcipher/tree/v4.11.0
