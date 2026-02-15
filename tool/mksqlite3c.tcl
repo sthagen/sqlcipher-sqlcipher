@@ -436,6 +436,7 @@ set flist {
    memjournal.c
 
    sqlcipher.c
+   crypto_libtomcrypt.c
    crypto_openssl.c
    crypto_cc.c
 
