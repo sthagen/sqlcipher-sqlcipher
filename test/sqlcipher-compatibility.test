@@ -1264,40 +1264,6 @@ db close
 file delete -force test.db
 file delete -force new.db
 
-
-# Requires SQLCipher to be built with -DSQLCIPHER_TEST
-if_built_with_libtomcrypt verify-random-data-alters-file-content {
-    file delete -force test.db
-    file delete -force test2.db
-    file delete -force test3.db
-    set rc {}
-    
-    sqlite_orig db test.db
-    execsql {
-        PRAGMA key="x'2DD29CA851E7B56E4697B0E1F08507293D761A05CE4D1B628663F411A8086D99'";
-        create table t1(a,b);
-    }
-    db close
-    sqlite_orig db test2.db
-    execsql {
-        PRAGMA key="x'2DD29CA851E7B56E4697B0E1F08507293D761A05CE4D1B628663F411A8086D99'";
-        create table t1(a,b);
-    }
-    db close
-    sqlite_orig db test3.db
-    execsql {
-        PRAGMA key="x'2DD29CA851E7B56E4697B0E1F08507293D761A05CE4D1B628663F411A8086D99'";
-        PRAGMA cipher_add_random = "x'deadbaad'";
-        create table t1(a,b);
-    }
-    db close
-    lappend rc [cmpFilesChunked test.db test2.db]
-    lappend rc [cmpFilesChunked test2.db test3.db]
-} {0 1}
-file delete -force test.db
-file delete -force test2.db
-file delete -force test3.db
-
 do_test can-migrate-with-keys-longer-than-64-characters {
     sqlite_orig db test.db
     execsql {

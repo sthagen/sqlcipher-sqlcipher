@@ -94,9 +94,7 @@ static int sqlcipher_ltc_activate(void *ctx) {
   }
   ltc_ref_count++;
 
-#ifndef SQLCIPHER_TEST
   bytes = rng_get_bytes(random_buffer, FORTUNA_MAX_SZ, NULL);
-#endif
   sqlcipher_log(SQLCIPHER_LOG_TRACE, SQLCIPHER_LOG_PROVIDER, "sqlcipher_ltc_activate: seeded fortuna with %d bytes from rng_get_bytes", bytes);
 
   if(sqlcipher_ltc_add_random(ctx, random_buffer, FORTUNA_MAX_SZ) != SQLITE_OK) {
