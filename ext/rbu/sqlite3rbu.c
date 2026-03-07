@@ -623,7 +623,7 @@ static int rbuDeltaApply(
           /* ERROR: copy exceeds output file size */
           return -1;
         }
-        if( (int)(ofst+cnt) > lenSrc ){
+        if( (u64)ofst+(u64)cnt > (u64)lenSrc ){
           /* ERROR: copy extends past end of input */
           return -1;
         }
@@ -2269,8 +2269,8 @@ static char *rbuObjIterGetIndexWhere(sqlite3rbu *p, RbuObjIter *pIter){
 
           /* If necessary, grow the pIter->aIdxCol[] array */
           if( iIdxCol==nIdxAlloc ){
-            RbuSpan *aIdxCol = (RbuSpan*)sqlite3_realloc(
-                pIter->aIdxCol, (nIdxAlloc+16)*sizeof(RbuSpan)
+            RbuSpan *aIdxCol = (RbuSpan*)sqlite3_realloc64(
+                pIter->aIdxCol, nIdxAlloc*sizeof(RbuSpan) + 16*sizeof(RbuSpan)
             );
             if( aIdxCol==0 ){
               rc = SQLITE_NOMEM;

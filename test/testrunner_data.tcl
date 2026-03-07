@@ -37,7 +37,6 @@ namespace eval trd {
   set tcltest(win.Windows-Memdebug)       veryquick
   set tcltest(win.Windows-Win32Heap)      veryquick
   set tcltest(win.Windows-Sanitize)       veryquick
-  set tcltest(win.Windows-WinRT)          veryquick
   set tcltest(win.Default)                {full win_unc_locking}
 
   # Extra [make xyz] tests that should be run for various builds.
@@ -193,6 +192,7 @@ namespace eval trd {
     -DSQLITE_ENABLE_HIDDEN_COLUMNS
     -DSQLITE_MAX_ATTACHED=125
     -DSQLITE_MUTATION_TEST
+    -DSQLITE_THREAD_MISUSE_ABORT
     --enable-fts5
   }
   set build(Debug-Two) {
@@ -363,12 +363,6 @@ namespace eval trd {
   }
   set build(Windows-Sanitize) {
     ASAN=1
-  }
-
-  set build(Windows-WinRT) {
-    FOR_WINRT=1
-    ENABLE_SETLK=1
-    -DSQLITE_TEMP_STORE=3
   }
 }
 

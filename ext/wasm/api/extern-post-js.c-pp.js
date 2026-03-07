@@ -26,7 +26,7 @@ const toExportForESM =
   */
   const originalInit = sqlite3InitModule;
   if(!originalInit){
-    throw new Error("Expecting globalThis.sqlite3InitModule to be defined by the Emscripten build.");
+    throw new Error("Expecting sqlite3InitModule to be defined by the Emscripten build.");
   }
   /**
      We need to add some state which our custom Module.locateFile()
@@ -73,6 +73,8 @@ const toExportForESM =
 
   const sIM = globalThis.sqlite3InitModule = function ff(...args){
     //console.warn("Using replaced sqlite3InitModule()",globalThis.location);
+    sIMS.emscriptenLocateFile = args[0]?.locateFile /* see pre-js.c-pp.js [tag:locateFile] */;
+    sIMS.emscriptenInstantiateWasm = args[0]?.instantiateWasm /* see pre-js.c-pp.js [tag:locateFile] */;
     return originalInit(...args).then((EmscriptenModule)=>{
       sIMS.debugModule("sqlite3InitModule() sIMS =",sIMS);
       sIMS.debugModule("sqlite3InitModule() EmscriptenModule =",EmscriptenModule);
