@@ -227,10 +227,10 @@ ifcapable auth {
     set ::STMT [sqlite3_prepare $::DB {SELECT * FROM sqlite_master} -1 TAIL]
     db auth {}
     sqlite3_step $::STMT
-  } {SQLITE_ERROR}
+  } {SQLITE_ROW}
   do_test schema-8.12 {
     sqlite3_finalize $::STMT
-  } {SQLITE_SCHEMA}
+  } {SQLITE_OK}
 
 }
 

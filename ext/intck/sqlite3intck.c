@@ -319,7 +319,7 @@ static int intckGetToken(const char *z){
   char c = z[0];
   int iRet = 1;
   if( c=='\'' || c=='"' || c=='`' ){
-    while( z[iRet] ){
+    while( 1 ){
       if( z[iRet]==c ){
         iRet++;
         if( z[iRet]!=c ) break;

@@ -18,7 +18,7 @@
 */
 'use strict';
 (function(){
-  const T = globalThis.SqliteTestUtil;
+  const T = self.SqliteTestUtil;
   const SW = new Worker("jswasm/sqlite3-worker1.js");
   const DbState = {
     id: undefined
@@ -323,7 +323,7 @@
           switch(ev.result){
               case 'worker1-ready':
                 log("Message:",ev);
-                globalThis.sqlite3TestModule.setStatus(null);
+                self.sqlite3TestModule.setStatus(null);
                 runTests();
                 return;
               default:
@@ -344,5 +344,5 @@
   };
   log("Init complete, but async init bits may still be running.");
   log("Installing Worker into global scope SW for dev purposes.");
-  globalThis.SW = SW;
+  self.SW = SW;
 })();

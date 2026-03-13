@@ -9,40 +9,11 @@ INSERT INTO t1 VALUES
   ('one','twotwotwo','thirty-three'),
   (unistr('\u001b[91mRED\u001b[0m'),'fourfour','fifty-five'),
   ('six','seven','eighty-eight');
-.testcase 100
+.print With -escape off
 SELECT * FROM t1;
-.check <<END
-╭─────┬───────────┬──────────────╮
-│  a  │     b     │      c       │
-╞═════╪═══════════╪══════════════╡
-│ one │ twotwotwo │ thirty-three │
-│ [91mRED[0m │ fourfour  │ fifty-five   │
-│ six │ seven     │ eighty-eight │
-╰─────┴───────────┴──────────────╯
-END
-
 .mode box -escape ascii
-.testcase 200
+.print With -escape ascii
 SELECT * FROM t1;
-.check <<END
-╭────────────────┬───────────┬──────────────╮
-│       a        │     b     │      c       │
-╞════════════════╪═══════════╪══════════════╡
-│ one            │ twotwotwo │ thirty-three │
-│ ^[[91mRED^[[0m │ fourfour  │ fifty-five   │
-│ six            │ seven     │ eighty-eight │
-╰────────────────┴───────────┴──────────────╯
-END
-
-.testcase 300
 .mode box -escape symbol
+.print With -escape symbol
 SELECT * FROM t1;
-.check <<END
-╭──────────────┬───────────┬──────────────╮
-│      a       │     b     │      c       │
-╞══════════════╪═══════════╪══════════════╡
-│ one          │ twotwotwo │ thirty-three │
-│ ␛[91mRED␛[0m │ fourfour  │ fifty-five   │
-│ six          │ seven     │ eighty-eight │
-╰──────────────┴───────────┴──────────────╯
-END

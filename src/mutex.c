@@ -27,28 +27,23 @@ static SQLITE_WSD int mutexIsInit = 0;
 
 #ifndef SQLITE_MUTEX_OMIT
 
-#ifdef SQLITE_THREAD_MISUSE_WARNINGS
+#ifdef SQLITE_ENABLE_MULTITHREADED_CHECKS
 /*
-** This block (enclosed by SQLITE_THREAD_MISUSE_WARNINGS) contains
+** This block (enclosed by SQLITE_ENABLE_MULTITHREADED_CHECKS) contains
 ** the implementation of a wrapper around the system default mutex
 ** implementation (sqlite3DefaultMutex()). 
 **
 ** Most calls are passed directly through to the underlying default
 ** mutex implementation. Except, if a mutex is configured by calling
 ** sqlite3MutexWarnOnContention() on it, then if contention is ever
-** encountered within xMutexEnter() then a warning is emitted via
-** sqlite3_log().  Furthermore, if SQLITE_THREAD_MISUSE_ABORT is
-** defined then abort() is called after the sqlite3_log() warning.
+** encountered within xMutexEnter() a warning is emitted via sqlite3_log().
 **
-** This type of mutex is used on the database handle mutex when testing
-** apps that usually use SQLITE_CONFIG_MULTITHREAD mode.  A failure
-** indicates that the app ought to be using SQLITE_OPEN_FULLMUTEX or
-** similar because it is trying to use the same database handle from
-** two different connections at the same time.
+** This type of mutex is used as the database handle mutex when testing
+** apps that usually use SQLITE_CONFIG_MULTITHREAD mode.
 */
 
 /* 
-** Type for all mutexes used when SQLITE_THREAD_MISUSE_WARNINGS
+** Type for all mutexes used when SQLITE_ENABLE_MULTITHREADED_CHECKS
 ** is defined. Variable CheckMutex.mutex is a pointer to the real mutex
 ** allocated by the system mutex implementation. Variable iType is usually set
 ** to the type of mutex requested - SQLITE_MUTEX_RECURSIVE, SQLITE_MUTEX_FAST
@@ -84,12 +79,11 @@ static int checkMutexNotheld(sqlite3_mutex *p){
 */
 static int checkMutexInit(void){ 
   pGlobalMutexMethods = sqlite3DefaultMutex();
-  return pGlobalMutexMethods->xMutexInit(); 
+  return SQLITE_OK; 
 }
 static int checkMutexEnd(void){ 
-  int rc = pGlobalMutexMethods->xMutexEnd(); 
   pGlobalMutexMethods = 0;
-  return rc;
+  return SQLITE_OK; 
 }
 
 /*
@@ -166,9 +160,6 @@ static void checkMutexEnter(sqlite3_mutex *p){
     sqlite3_log(SQLITE_MISUSE, 
         "illegal multi-threaded access to database connection"
     );
-#if SQLITE_THREAD_MISUSE_ABORT
-    abort();
-#endif
   }
   pGlobalMutexMethods->xMutexEnter(pCheck->mutex);
 }
@@ -220,7 +211,7 @@ void sqlite3MutexWarnOnContention(sqlite3_mutex *p){
     pCheck->iType = SQLITE_MUTEX_WARNONCONTENTION;
   }
 }
-#endif   /* ifdef SQLITE_THREAD_MISUSE_WARNINGS */
+#endif   /* ifdef SQLITE_ENABLE_MULTITHREADED_CHECKS */
 
 /*
 ** Initialize the mutex system.
@@ -237,7 +228,7 @@ int sqlite3MutexInit(void){
     sqlite3_mutex_methods *pTo = &sqlite3GlobalConfig.mutex;
 
     if( sqlite3GlobalConfig.bCoreMutex ){
-#ifdef SQLITE_THREAD_MISUSE_WARNINGS
+#ifdef SQLITE_ENABLE_MULTITHREADED_CHECKS
       pFrom = multiThreadedCheckMutex();
 #else
       pFrom = sqlite3DefaultMutex();

@@ -98,9 +98,9 @@ typedef struct SegmentWriter SegmentWriter;
 ** incrementally. See function fts3PendingListAppend() for details.
 */
 struct PendingList {
-  sqlite3_int64 nData;
+  int nData;
   char *aData;
-  sqlite3_int64 nSpace;
+  int nSpace;
   sqlite3_int64 iLastDocid;
   sqlite3_int64 iLastCol;
   sqlite3_int64 iLastPos;
@@ -274,24 +274,6 @@ struct SegmentNode {
 #define SQL_UPDATE_LEVEL              39
 
 /*
-** Wrapper around sqlite3_prepare_v3() to ensure that SQLITE_PREPARE_FROM_DDL
-** is always set.
-*/
-int sqlite3Fts3PrepareStmt(
-  Fts3Table *p,                   /* Prepare for this connection */
-  const char *zSql,               /* SQL to prepare */
-  int bPersist,                   /* True to set SQLITE_PREPARE_PERSISTENT */
-  int bAllowVtab,                 /* True to omit SQLITE_PREPARE_NO_VTAB */
-  sqlite3_stmt **pp               /* OUT: Prepared statement */
-){
-  int f = SQLITE_PREPARE_FROM_DDL
-         |((bAllowVtab==0) ? SQLITE_PREPARE_NO_VTAB : 0)
-         |(bPersist ? SQLITE_PREPARE_PERSISTENT : 0);
-
-  return sqlite3_prepare_v3(p->db, zSql, -1, f, pp, NULL);
-}
-
-/*
 ** This function is used to obtain an SQLite prepared statement handle
 ** for the statement identified by the second argument. If successful,
 ** *pp is set to the requested statement handle and SQLITE_OK returned.
@@ -416,12 +398,12 @@ static int fts3SqlStmt(
   
   pStmt = p->aStmt[eStmt];
   if( !pStmt ){
-    int bAllowVtab = 0;
+    int f = SQLITE_PREPARE_PERSISTENT|SQLITE_PREPARE_NO_VTAB;
     char *zSql;
     if( eStmt==SQL_CONTENT_INSERT ){
       zSql = sqlite3_mprintf(azSql[eStmt], p->zDb, p->zName, p->zWriteExprlist);
     }else if( eStmt==SQL_SELECT_CONTENT_BY_ROWID ){
-      bAllowVtab = 1;
+      f &= ~SQLITE_PREPARE_NO_VTAB;
       zSql = sqlite3_mprintf(azSql[eStmt], p->zReadExprlist);
     }else{
       zSql = sqlite3_mprintf(azSql[eStmt], p->zDb, p->zName);
@@ -429,7 +411,7 @@ static int fts3SqlStmt(
     if( !zSql ){
       rc = SQLITE_NOMEM;
     }else{
-      rc = sqlite3Fts3PrepareStmt(p, zSql, 1, bAllowVtab, &pStmt);
+      rc = sqlite3_prepare_v3(p->db, zSql, -1, f, &pStmt, NULL);
       sqlite3_free(zSql);
       assert( rc==SQLITE_OK || pStmt==0 );
       p->aStmt[eStmt] = pStmt;
@@ -778,9 +760,7 @@ static int fts3PendingTermsAddOne(
 
   pList = (PendingList *)fts3HashFind(pHash, zToken, nToken);
   if( pList ){
-    assert( (i64)pList->nData+(i64)nToken+(i64)sizeof(Fts3HashElem)
-             <= (i64)p->nPendingData );
-    p->nPendingData -= (int)(pList->nData + nToken + sizeof(Fts3HashElem));
+    p->nPendingData -= (pList->nData + nToken + sizeof(Fts3HashElem));
   }
   if( fts3PendingListAppend(&pList, p->iPrevDocid, iCol, iPos, &rc) ){
     if( pList==fts3HashInsert(pHash, zToken, nToken, pList) ){
@@ -793,9 +773,7 @@ static int fts3PendingTermsAddOne(
     }
   }
   if( rc==SQLITE_OK ){
-    assert( (i64)p->nPendingData + pList->nData + nToken
-             + sizeof(Fts3HashElem) <= 0x3fffffff );
-    p->nPendingData += (int)(pList->nData + nToken + sizeof(Fts3HashElem));
+    p->nPendingData += (pList->nData + nToken + sizeof(Fts3HashElem));
   }
   return rc;
 }
@@ -3596,7 +3574,7 @@ static int fts3DoRebuild(Fts3Table *p){
     if( !zSql ){
       rc = SQLITE_NOMEM;
     }else{
-      rc = sqlite3Fts3PrepareStmt(p, zSql, 0, 1, &pStmt);
+      rc = sqlite3_prepare_v2(p->db, zSql, -1, &pStmt, 0);
       sqlite3_free(zSql);
     }
 
@@ -5349,7 +5327,7 @@ int sqlite3Fts3IntegrityCheck(Fts3Table *p, int *pbOk){
     if( !zSql ){
       rc = SQLITE_NOMEM;
     }else{
-      rc = sqlite3Fts3PrepareStmt(p, zSql, 0, 1, &pStmt);
+      rc = sqlite3_prepare_v2(p->db, zSql, -1, &pStmt, 0);
       sqlite3_free(zSql);
     }
 
@@ -5479,7 +5457,7 @@ static int fts3SpecialInsert(Fts3Table *p, sqlite3_value *pVal){
       v = atoi(&zVal[9]);
       if( v>=24 && v<=p->nPgsz-35 ) p->nNodeSize = v;
       rc = SQLITE_OK;
-    }else if( nVal>11 && 0==sqlite3_strnicmp(zVal, "maxpending=", 11) ){
+    }else if( nVal>11 && 0==sqlite3_strnicmp(zVal, "maxpending=", 9) ){
       v = atoi(&zVal[11]);
       if( v>=64 && v<=FTS3_MAX_PENDING_DATA ) p->nMaxPendingData = v;
       rc = SQLITE_OK;

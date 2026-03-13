@@ -455,7 +455,7 @@ static void fts5SnippetFunction(
 
   iBestCol = (iCol>=0 ? iCol : 0);
   nPhrase = pApi->xPhraseCount(pFts);
-  aSeen = sqlite3_malloc64(nPhrase);
+  aSeen = sqlite3_malloc(nPhrase);
   if( aSeen==0 ){
     rc = SQLITE_NOMEM;
   }

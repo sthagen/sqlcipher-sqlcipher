@@ -379,6 +379,9 @@ do_execsql_test 12.2 {
 db close
 sqlite3 db test.db -readonly 1
 
+explain_i {
+  PRAGMA integrity_check
+  }
 do_execsql_test 12.3 {
   PRAGMA integrity_check
 } {ok}

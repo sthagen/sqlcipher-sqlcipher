@@ -1842,7 +1842,7 @@ proc proj-setup-autoreconfig {defName} {
 }
 
 #
-# @prop-define-append defineName args...
+# @prop-append-to defineName args...
 #
 # A proxy for Autosetup's [define-append]. Appends all non-empty $args
 # to [define-append $defineName].
@@ -1873,7 +1873,7 @@ proc proj-define-append {defineName args} {
 # but it is technically correct and still relevant on some
 # environments.
 #
-# See: proj-define-append
+# See: proj-append-to
 #
 proc proj-define-amend {args} {
   set defName ""

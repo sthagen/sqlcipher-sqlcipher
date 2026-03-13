@@ -842,8 +842,6 @@ int sqlite3PagerDirectReadOk(Pager *pPager, Pgno pgno){
     (void)sqlite3WalFindFrame(pPager->pWal, pgno, &iRead);
     if( iRead ) return 0;  /* Case (4) */
   }
-#else
-  UNUSED_PARAMETER(pgno);
 #endif
   assert( pPager->fd->pMethods->xDeviceCharacteristics!=0 );
   if( (pPager->fd->pMethods->xDeviceCharacteristics(pPager->fd)
@@ -1270,17 +1268,17 @@ static int jrnlBufferSize(Pager *pPager){
 */
 #ifdef SQLITE_CHECK_PAGES
 /*
-** Return a 64-bit hash of the page data for pPage.
+** Return a 32-bit hash of the page data for pPage.
 */
-static u64 pager_datahash(int nByte, unsigned char *pData){
-  u64 hash = 0;
+static u32 pager_datahash(int nByte, unsigned char *pData){
+  u32 hash = 0;
   int i;
   for(i=0; i<nByte; i++){
     hash = (hash*1039) + pData[i];
   }
   return hash;
 }
-static u64 pager_pagehash(PgHdr *pPage){
+static u32 pager_pagehash(PgHdr *pPage){
   return pager_datahash(pPage->pPager->pageSize, (unsigned char *)pPage->pData);
 }
 static void pager_set_pagehash(PgHdr *pPage){
@@ -4298,8 +4296,6 @@ int sqlite3PagerClose(Pager *pPager, sqlite3 *db){
     sqlite3WalClose(pPager->pWal, db, pPager->walSyncFlags, pPager->pageSize,a);
     pPager->pWal = 0;
   }
-#else
-  UNUSED_PARAMETER(db);
 #endif
   pager_reset(pPager);
   if( MEMDB ){

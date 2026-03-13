@@ -5190,7 +5190,7 @@ static int unixShmMap(
     }
 
     /* Map the requested memory region into this processes address space. */
-    apNew = (char **)sqlite3_realloc64(
+    apNew = (char **)sqlite3_realloc(
         pShmNode->apRegion, nReqRegion*sizeof(char *)
     );
     if( !apNew ){
