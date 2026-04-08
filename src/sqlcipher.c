@@ -124,7 +124,7 @@ void sqlite3pager_reset(Pager *pPager);
 
 
 #ifndef DEFAULT_CIPHER_FLAGS
-#define DEFAULT_CIPHER_FLAGS CIPHER_FLAG_HMAC | CIPHER_FLAG_LE_PGNO
+#define DEFAULT_CIPHER_FLAGS (CIPHER_FLAG_HMAC | CIPHER_FLAG_LE_PGNO)
 #endif
 
 
@@ -349,7 +349,7 @@ static void cipher_hex2bin(const unsigned char *hex, int sz, unsigned char *out)
 static void cipher_bin2hex(const unsigned char* in, int sz, char *out) {
     int i;
     for(i=0; i < sz; i++) {
-      sqlite3_snprintf(3, out + (i*2), "%02x ", in[i]);
+      sqlite3_snprintf(3, out + (i*2), "%02x", in[i]);
     } 
 }
 
@@ -2070,7 +2070,7 @@ migrate:
   memcpy(migrated_db_filename, temp, sqlite3Strlen30(temp));
   sqlcipher_free(temp, sqlite3Strlen30(temp));
 
-  attach_command = sqlite3_mprintf("ATTACH DATABASE '%s' as migrate;", migrated_db_filename, pass); 
+  attach_command = sqlite3_mprintf("ATTACH DATABASE '%s' as migrate;", migrated_db_filename); 
   set_user_version = sqlite3_mprintf("PRAGMA migrate.user_version = %d;", user_version);
 
   rc = sqlite3_exec(db, pragma_compat, NULL, NULL, NULL);
