@@ -424,12 +424,15 @@ static int sqlcipher_export_init(sqlite3* db, char** errmsg, const struct sqlite
 int sqlcipher_extra_init(const char* arg) {
   int rc = SQLITE_OK, i=0;
   void* provider_ctx = NULL;
+  int mutex_held = 0;
 
   sqlite3_mutex_enter(sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MASTER));
+  mutex_held = 1;
 
   if(sqlcipher_init) {
     /* if this init routine already completed successfully return immediately */
     sqlite3_mutex_leave(sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MASTER));
+    mutex_held = 0;
     return SQLITE_OK;
   }
 
@@ -549,12 +552,14 @@ int sqlcipher_extra_init(const char* arg) {
   }
 
   default_provider->ctx_free(&provider_ctx);
+  provider_ctx = NULL;
 
   sqlcipher_init = 1;
   sqlcipher_shutdown = 0;
 
   /* leave the master mutex so we can proceed with auto extension registration */
   sqlite3_mutex_leave(sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MASTER));
+  mutex_held = 0;
 
   /* finally, extension registration occurs outside of the mutex because it is
    * uses SQLITE_MUTEX_STATIC_MASTER itself */
@@ -578,9 +583,10 @@ error:
       sqlcipher_static_mutex[i] = NULL;
     }
   }
+  if(provider_ctx) default_provider->ctx_free(&provider_ctx);
 
   /* post cleanup return the error code back up to sqlite3_init() */
-  sqlite3_mutex_leave(sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MASTER));
+  if(mutex_held) sqlite3_mutex_leave(sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MASTER));
   sqlcipher_init_error = rc;
   return rc;
 }
