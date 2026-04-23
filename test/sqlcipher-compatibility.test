@@ -433,9 +433,9 @@ file delete -force test.db
 file delete -force test2.db
 
 # use the sqlcipher_export function
-# on a non-existent database. Verify 
-# the error gets through.
-do_test export-error {
+# on a non-existent target database
+# and verify an error is reported
+do_test export-target-error {
   sqlite_orig db test.db
 
   catchsql {
@@ -443,7 +443,23 @@ do_test export-error {
     CREATE TABLE t1(a,b);
     SELECT sqlcipher_export('nodb');
   } 
-} {1 {unknown database nodb}}
+} {1 {invalid target database nodb}}
+db close
+file delete -force test.db
+
+# use the sqlcipher_export function
+# on a non-existent source database
+# and verify an error is reported
+do_test export-source-error {
+  sqlite_orig db test.db
+
+  catchsql {
+    PRAGMA key = 'testkey';
+    CREATE TABLE t1(a,b);
+    SELECT sqlcipher_export('main', 'nodb');
+  }
+
+} {1 {invalid source database nodb}}
 db close
 file delete -force test.db
 
