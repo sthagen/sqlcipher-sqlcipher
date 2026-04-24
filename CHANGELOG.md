@@ -1,7 +1,12 @@
 # SQLCipher Change Log
 Notable changes to this project are documented in this file.
 
-## [4.15.0] - (? 2026 - [4.15.0 changes])
+## [4.15.0] - (April 2026 - [4.15.0 changes])
+- Update baseline to SQLite 3.53.0
+- Sanitize source database name passed to `sqlcipher_export`
+- Improve error handling in `sqlcipher_extra_init`
+- Remove const from pzErrMesg in `sqlcipher_export_init` (issue #590)
+- Minor code cleanups
 
 ## [4.14.0] - (March 2026 - [4.14.0 changes])
 - Updates baseline to SQLite 3.51.3
