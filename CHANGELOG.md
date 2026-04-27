@@ -3,7 +3,8 @@ Notable changes to this project are documented in this file.
 
 ## [4.15.0] - (April 2026 - [4.15.0 changes])
 - Update baseline to SQLite 3.53.0
-- Sanitize source database name passed to `sqlcipher_export`
+- Sanitize source database name passed to `sqlcipher_export` (reported by
+  Dima Petschke from Deutsche Telekom Security GmbH)
 - Improve error handling in `sqlcipher_extra_init`
 - Remove const from pzErrMesg in `sqlcipher_export_init` (issue #590)
 - Minor code cleanups
