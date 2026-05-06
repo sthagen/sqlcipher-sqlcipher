@@ -158,7 +158,7 @@ static int sqlcipher_ltc_hmac(
 ) {
   int rc, hash_idx;
   unsigned long outlen;
-  hmac_state *hmac = NULL;
+  hmac_state hmac;
 
   if(in == NULL) goto error;
 
@@ -184,23 +184,19 @@ static int sqlcipher_ltc_hmac(
 
   outlen = hash_descriptor[hash_idx].hashsize;
 
-  if(!(hmac = sqlcipher_malloc(sizeof(hmac_state)))) {
-    sqlcipher_log(SQLCIPHER_LOG_ERROR, SQLCIPHER_LOG_PROVIDER, "%s: failed to allocate hmac_state", __func__);
-    goto error;
-  }
-  if((rc = hmac_init(hmac, hash_idx, hmac_key, key_sz)) != CRYPT_OK) {
+  if((rc = hmac_init(&hmac, hash_idx, hmac_key, key_sz)) != CRYPT_OK) {
     sqlcipher_log(SQLCIPHER_LOG_ERROR, SQLCIPHER_LOG_PROVIDER, "%s: hmac_init failed %d", __func__, rc);
     goto error;
   }
-  if((rc = hmac_process(hmac, in, in_sz)) != CRYPT_OK) {
+  if((rc = hmac_process(&hmac, in, in_sz)) != CRYPT_OK) {
     sqlcipher_log(SQLCIPHER_LOG_ERROR, SQLCIPHER_LOG_PROVIDER, "%s: hmac_process failed %d", __func__, rc);
     goto error;
   }
-  if(in2 != NULL && (rc = hmac_process(hmac, in2, in2_sz)) != CRYPT_OK) {
+  if(in2 != NULL && (rc = hmac_process(&hmac, in2, in2_sz)) != CRYPT_OK) {
     sqlcipher_log(SQLCIPHER_LOG_ERROR, SQLCIPHER_LOG_PROVIDER, "%s: hmac_process 2 failed %d", __func__, rc);
     goto error;
   }
-  if((rc = hmac_done(hmac, out, &outlen)) != CRYPT_OK) {
+  if((rc = hmac_done(&hmac, out, &outlen)) != CRYPT_OK) {
     sqlcipher_log(SQLCIPHER_LOG_ERROR, SQLCIPHER_LOG_PROVIDER, "%s: done failed %d", __func__, rc);
     goto error;
   }
@@ -212,7 +208,7 @@ error:
   rc = SQLITE_ERROR;
 
 cleanup:
-  if(hmac) sqlcipher_free(hmac, sizeof(hmac_state));
+  sqlcipher_memset(&hmac, 0, sizeof(hmac));
   return rc;
 }
 
@@ -266,32 +262,28 @@ static int sqlcipher_ltc_cipher(
   unsigned char *out
 ) {
   int rc, cipher_idx;
-  symmetric_CBC *cbc = NULL;
+  symmetric_CBC cbc;
 
   if((cipher_idx = find_cipher(LTC_CIPHER)) == -1) {
     sqlcipher_log(SQLCIPHER_LOG_ERROR, SQLCIPHER_LOG_PROVIDER, "%s: failed find_cipher lookup", __func__);
     goto error;
   }
-  if(!(cbc = sqlcipher_malloc(sizeof(symmetric_CBC)))) {
-    sqlcipher_log(SQLCIPHER_LOG_ERROR, SQLCIPHER_LOG_PROVIDER, "%s: failed to allocate symmetric_CBC", __func__);
-    goto error;
-  }
-  if((rc = cbc_start(cipher_idx, iv, key, key_sz, 0, cbc)) != CRYPT_OK) {
+  if((rc = cbc_start(cipher_idx, iv, key, key_sz, 0, &cbc)) != CRYPT_OK) {
     sqlcipher_log(SQLCIPHER_LOG_ERROR, SQLCIPHER_LOG_PROVIDER, "%s: failed cbc_start %d", __func__, rc);
     goto error;
   }
   if(mode == SQLCIPHER_ENCRYPT) {
-    if((rc = cbc_encrypt(in, out, in_sz, cbc)) != CRYPT_OK) {
+    if((rc = cbc_encrypt(in, out, in_sz, &cbc)) != CRYPT_OK) {
       sqlcipher_log(SQLCIPHER_LOG_ERROR, SQLCIPHER_LOG_PROVIDER, "%s: failed cbc_encrypt %d", __func__, rc);
       goto error;
     }
   } else {
-    if((rc = cbc_decrypt(in, out, in_sz, cbc)) != CRYPT_OK) {
+    if((rc = cbc_decrypt(in, out, in_sz, &cbc)) != CRYPT_OK) {
       sqlcipher_log(SQLCIPHER_LOG_ERROR, SQLCIPHER_LOG_PROVIDER, "%s: failed cbc_decrypt %d", __func__, rc);
       goto error;
     }
   }
-  if((rc = cbc_done(cbc)) != CRYPT_OK) {
+  if((rc = cbc_done(&cbc)) != CRYPT_OK) {
     sqlcipher_log(SQLCIPHER_LOG_ERROR, SQLCIPHER_LOG_PROVIDER, "%s: failed cbc_done %d", __func__, rc);
     goto error;
   }
@@ -303,7 +295,7 @@ error:
   rc = SQLITE_ERROR;
 
 cleanup:
-  if(cbc) sqlcipher_free(cbc, sizeof(symmetric_CBC));
+  sqlcipher_memset(&cbc, 0, sizeof(cbc));
   return rc;
 }
 
